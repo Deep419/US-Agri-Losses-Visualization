@@ -5,25 +5,32 @@
 <head>
   <title>Horizontal Bar Chart</title>
   <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script src="https://d3js.org/topojson.v2.min.js"></script>
 
   <style type="text/css">
     svg {
       font: 10px sans-serif;
     }
+
     svg .myrect_tree:hover {
-        fill: red;
+      fill: red;
     }
+
     svg .text {
-        fill: black;
+      fill: black;
     }
+
     svg .myrect {
-        fill: steelblue;
-        stroke-width: 0px;
+      fill: steelblue;
+      stroke-width: 0px;
     }
+
     svg .myrect:hover {
-        fill: red;
+      fill: red;
     }
-    </style>
+
+  </style>
 
   <script type="text/javascript">
     var entireData;
@@ -34,6 +41,10 @@
     var marginBar = { top: 10, right: 10, bottom: 30, left: 200 };
     var svgWidthBar = 1200 - marginBar.left - marginBar.right;
     var svgHeightBar = 600 - marginBar.top - marginBar.bottom;
+
+    var margin_tree = { top: 10, right: 10, bottom: 30, left: 100 };
+    var svgWidth_tree = 960;
+    var svgHeight_tree = 600;
 
     function loadData() {
       d3.csv("https://raw.githubusercontent.com/Deep419/US-Agri-Losses-Visualization/master/losses2015_transformed.csv")
@@ -48,49 +59,45 @@
             .attr("id", "svg_bar_g_id")
             .attr("transform", "translate(" + marginBar.left + "," + marginBar.top + ")");
 
+          d3.select("#svg_tree")
+            .attr("width", svgWidth_tree + margin_tree.left + margin_tree.right)
+            .attr("height", svgHeight_tree + margin_tree.top + margin_tree.bottom)
+            // .append("g")
+            .attr("id", "svg_tree_g_id");
+          // .attr("transform", "translate(" + margin_tree.left + "," + margin_tree.top + ")");
+
+          createMap();
           generateDataBar(null);
           createBarChart();
-
-          // myBarData = d3.nest()
-          //   .key(function (d) { return d.Damage_Descp; })
-          //   .rollup(function (d) {
-          //     return d3.sum(d, function (g) { return g.Amount; });
-          //   })
-          //   .entries(data);
-          // myBarData.sort(function (a, b) { return b.value - a.value; })
-          // createBarChart();
-          // console.log(myBarData)
+          generateDataMap(null);
         });
     }
 
-    function generateDataBar(myCommodity) {
-      console.log(myCommodity);
-      if (myCommodity) {
-        console.log(entireData);  
-        d3.select("#title_bar").text("Losses 2015 [$] State: " + myCommodity);
+    function generateDataBar(myState) {
+      // console.log(myState);
+      if (myState) {
+        // console.log(entireData);
+        d3.select("#title_bar").text("Losses 2015 [$] State: " + myState);
 
         myBarData = d3.nest()
           .key(function (d) { return d.Damage_Descp; })
           .rollup(function (d) { return d3.sum(d, function (g) { return g.Amount; }); })
-          .entries(entireData.filter(function (d) { return d.Damage_Descp.replace(/ /g, '') == myCommodity; }));
-        console.log(myBarData);
-        myBarData.sort(function (a, b) { return b.value-a.value; });
+          .entries(entireData.filter(function (d) { return d.State_Abv.replace(/ /g, '') == myState; }));
+        // console.log(myBarData);
+        myBarData.sort(function (a, b) { return b.value - a.value; });
       } else {
-        
+
         d3.select("#title_bar").text("Losses 2015 [$] State: All");
 
         myBarData = d3.nest()
           .key(function (d) { return d.Damage_Descp; })
           .rollup(function (d) { return d3.sum(d, function (g) { return g.Amount; }); })
           .entries(entireData);
-        myBarData.sort(function (a, b) { return b.value-a.value; });
+        myBarData.sort(function (a, b) { return b.value - a.value; });
       }
     }
 
     function createBarChart() {
-      // append the svg object to the body of the page
-      // append a 'group' element to 'svg'
-      // moves the 'group' element to the top left marginBar
 
       var svg = d3.select("#svg_bar_g_id");
       // set the ranges
@@ -101,14 +108,8 @@
       var x = d3.scaleLinear()
         .range([0, svgWidthBar]);
 
-      // // format the data
-      // myBarData.forEach(function (d) {
-      //   d.Amount = +d.Amount;
-      // });
-      // Scale the range of the data in the domains
       x.domain([0, d3.max(myBarData, function (d) { return d.value; })])
       y.domain(myBarData.map(function (d) { return d.key; }));
-      //y.domain([0, d3.max(data, function(d) { return d.Amount; })]);
 
       // append the rectangles for the bar chart
       svg.selectAll(".bar")
@@ -121,12 +122,12 @@
         .attr("height", y.bandwidth())
         .attr("class", "myrect")
         .on("mouseover", function (d) {
-          generateDataBar(d.key);
+          generateDataMap(d.key);
           // removeTreeMap();
           // createTreeMap();
         })
         .on("mouseout", function (d) {
-          generateDataBar(null);
+          generateDataMap(null);
           // removeTreeMap();
           // createTreeMap();
         });
@@ -140,18 +141,98 @@
       svg.append("g")
         .call(d3.axisLeft(y));
     }
+
+    function generateDataMap(myState) {
+
+      // console.log(myState);
+      if (myState) {
+        // console.log(entireData);
+        d3.select("#title_map").text("Losses 2015 [$] Damage Type: " + myState);
+
+        myBarData = d3.nest()
+          .key(function (d) { return d.Damage_Descp; })
+          .rollup(function (d) { return d3.sum(d, function (g) { return g.Amount; }); })
+          .entries(entireData.filter(function (d) { return d.State_Abv.replace(/ /g, '') == myState; }));
+        // console.log(myBarData);
+        myBarData.sort(function (a, b) { return b.value - a.value; });
+      } else {
+
+        d3.select("#title_map").text("Losses 2015 [$] Damage Type: All");
+
+        myBarData = d3.nest()
+          .key(function (d) { return d.Damage_Descp; })
+          .rollup(function (d) { return d3.sum(d, function (g) { return g.Amount; }); })
+          .entries(entireData);
+        myBarData.sort(function (a, b) { return b.value - a.value; });
+      }
+    };
+
+    function createMap() {
+      var svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height");
+
+      var unemployment = d3.map();
+
+      var path = d3.geoPath();
+
+      var x = d3.scaleLinear()
+        .domain([1, 10])
+        .rangeRound([600, 860]);
+
+      var color = d3.scaleThreshold()
+        .domain(d3.range(2, 10))
+        .range(d3.schemeBlues[9]);
+
+      var promises = [
+        d3.json("https://d3js.org/us-10m.v1.json")
+      ]
+
+      Promise.all(promises).then(ready)
+
+      function ready([us]) {
+        svg.append("g")
+          .attr("class", "counties")
+          .selectAll("path")
+          .data(topojson.feature(us, us.objects.counties).features)
+          .enter().append("path")
+          .attr("fill", function (d) { return color(d.rate = unemployment.get(d.id)); })
+          .attr("d", path)
+          .append("title")
+          .text(function (d) { return d.rate + "%"; });
+
+        svg.append("path")
+          .datum(topojson.mesh(us, us.objects.states, function (a, b) { return a !== b; }))
+          .attr("class", "states")
+          .attr("d", path);
+      }
+
+    };
+
     window.onload = loadData;
+
+
   </script>
 
 
 </head>
+
 <body>
 
   <table align="center">
-  <tr><td><div id="title_bar" align="center">Losses 2015 [$] State: All</div><svg id="svg_bar"></svg></td></tr>
-  <!-- <tr><td><div id="title_tree" align="center">Year: All</div><svg id="svg_tree"></svg></td></tr> -->
+    <tr>
+      <td>
+        <div id="title_map" align="center">Losses 2015 [$] Damage Type: All</div><svg id="svg_tree"></svg>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div id="title_bar" align="center">Losses 2015 [$] State: All</div><svg id="svg_bar"></svg>
+      </td>
+    </tr>
+
   </table>
 
-  </body>
+</body>
 
 </html>
